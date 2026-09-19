@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chemo & Yarin Agency</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f5f2; --card:#fff; --line:#e6e4de; --text:#1b1b1b; --muted:#7a7873; --accent:#111;
+    --assaf:#e24b4a; --reef:#2f80ed; --stern:#c99a2e; --agency:#111;
+    --ok:#1f9d55; --warn:#d97706;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:Heebo,system-ui,sans-serif;font-size:15px}
+  a{color:inherit}
+  button{font:inherit;cursor:pointer}
+  input,select,textarea{font:inherit}
+  .app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+  nav{background:#fff;border-left:1px solid var(--line);padding:22px 16px;position:sticky;top:0;height:100vh}
+  nav .brand{font-weight:700;font-size:17px;margin-bottom:26px;letter-spacing:.2px}
+  nav .brand small{display:block;color:var(--muted);font-weight:400;font-size:12px;margin-top:2px}
+  nav button{display:block;width:100%;text-align:right;background:none;border:0;padding:10px 12px;border-radius:10px;color:#444;margin-bottom:2px}
+  nav button.on{background:#111;color:#fff}
+  nav .foot{position:absolute;bottom:20px;right:16px;left:16px;color:var(--muted);font-size:12px}
+  nav .foot button{padding:6px 0;color:var(--muted);font-size:12px}
+  main{padding:28px 32px;max-width:1240px}
+  h1{font-size:22px;margin:0 0 18px;font-weight:700}
+  h2{font-size:15px;margin:0 0 12px;font-weight:600}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .tile{flex:1;min-width:170px}
+  .tile .k{color:var(--muted);font-size:12px;margin-bottom:6px}
+  .tile .v{font-size:24px;font-weight:700}
+  .tile .s{color:var(--muted);font-size:12px;margin-top:4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:900px){.app{grid-template-columns:1fr}nav{position:static;height:auto}.grid2{grid-template-columns:1fr}main{padding:18px}}
+  table{width:100%;border-collapse:collapse}
+  th{font-weight:600;font-size:12px;color:var(--muted);text-align:right;padding:8px 6px;border-bottom:1px solid var(--line)}
+  td{padding:9px 6px;border-bottom:1px solid #f0efeb;vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-left:6px;vertical-align:middle}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;background:#f0efeb;color:#444}
+  .pill.a{background:#fde8e8;color:#b32d2c}.pill.r{background:#e4efff;color:#1f5fc2}.pill.s{background:#f8eecf;color:#8a6410}
+  .muted{color:var(--muted)}
+  .btn{background:#111;color:#fff;border:0;border-radius:10px;padding:9px 14px}
+  .btn.ghost{background:#fff;color:#111;border:1px solid var(--line)}
+  .btn.sm{padding:5px 10px;font-size:13px;border-radius:8px}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:#444}
+  .field input,.field select,.field textarea{border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:#fff}
+  form.inline{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .tabs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;color:#444}
+  .tabs button.on{background:#111;color:#fff;border-color:#111}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .cal .h{font-size:11px;color:var(--muted);text-align:center;padding:4px}
+  .cal .d{background:#fff;border:1px solid var(--line);border-radius:10px;min-height:86px;padding:6px;font-size:12px}
+  .cal .d.out{opacity:.35}
+  .cal .d .n{color:var(--muted);font-size:11px;margin-bottom:4px}
+  .cal .ev{border-radius:6px;padding:2px 5px;margin-bottom:3px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+  .bars{display:flex;align-items:flex-end;gap:10px;height:140px;padding-top:10px}
+  .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+  .bar .stack{width:100%;display:flex;flex-direction:column-reverse;border-radius:6px;overflow:hidden;background:#f0efeb}
+  .bar .seg{width:100%}
+  .task{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0efeb}
+  .task:last-child{border-bottom:0}
+  .task input[type=checkbox]{margin-top:4px}
+  .task .t{flex:1}
+  .task .t small{display:block;color:var(--muted);font-size:12px}
+  .task.done .t{text-decoration:line-through;color:var(--muted)}
+  .feed li{padding:7px 0;border-bottom:1px solid #f0efeb;font-size:13px}
+  .feed li:last-child{border-bottom:0}
+  .feed time{color:var(--muted);font-size:11px;margin-right:6px}
+  #login{max-width:360px;margin:12vh auto;display:flex;flex-direction:column;gap:12px}
+  .err{color:#b32d2c;font-size:13px}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:20px}
+  .modal .card{width:100%;max-width:520px}
+  .hidden{display:none!important}
+  .bar-goal{height:8px;background:#f0efeb;border-radius:999px;overflow:hidden;margin-top:6px}
+  .bar-goal i{display:block;height:100%;background:#111}
+</style>
+</head>
+<body>
+
+<div id="login" class="hidden">
+  <div class="card">
+    <div class="brand" style="font-weight:700;font-size:18px;margin-bottom:4px">Chemo & Yarin Agency</div>
+    <div class="muted" style="font-size:13px;margin-bottom:16px">כניסה למנהלי הסוכנות</div>
+    <form id="loginForm" style="display:flex;flex-direction:column;gap:10px">
+      <label class="field">אימייל<input name="email" type="email" required autocomplete="username"></label>
+      <label class="field">סיסמה<input name="password" type="password" required autocomplete="current-password"></label>
+      <button class="btn" type="submit">כניסה</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <nav>
+    <div class="brand">Chemo & Yarin<small>Agency dashboard</small></div>
+    <button data-page="home" class="on">בית</button>
+    <button data-page="calendar">יומן משותף</button>
+    <button data-page="income">הכנסות</button>
+    <button data-page="tasks">משימות הדיג'ייז</button>
+    <button data-page="agency">ניהול פנימי</button>
+    <button data-page="goals">מטרות</button>
+    <div class="foot"><span id="who"></span><br><button id="logout">התנתק</button></div>
+  </nav>
+  <main id="main"></main>
+</div>
+
+<div id="modal" class="modal hidden"></div>
+
+<script>
+// ---------- config ----------
+const SUPA_URL = 'https://bqmktejmudhnkypatawn.supabase.co';
+const SUPA_KEY = 'sb_publishable_XkAA4IjFDnYy10vl9zuj3g_fcX8ZYag';
+const COLORS = { 'assaf-michael':'var(--assaf)', 'reef-kopel':'var(--reef)', 'stern':'var(--stern)' };
+const PILL = { 'assaf-michael':'a', 'reef-kopel':'r', 'stern':'s' };
+const HE_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const HE_DAYS = ['א','ב','ג','ד','ה','ו','ש'];
+
+// ---------- auth + api ----------
+const store = { get(){ try{return JSON.parse(localStorage.getItem('cy_session')||'null')}catch{return null} }, set(s){ try{ s?localStorage.setItem('cy_session',JSON.stringify(s)):localStorage.removeItem('cy_session') }catch{} } };
+let session = store.get();
+
+async function api(path, {method='GET', body, headers={}, retry=true}={}) {
+  const h = { apikey: SUPA_KEY, 'Content-Type':'application/json', ...headers };
+  if (session?.access_token) h.Authorization = 'Bearer ' + session.access_token;
+  const r = await fetch(SUPA_URL + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401 && retry && session?.refresh_token) {
+    const ok = await refresh(); if (ok) return api(path, {method, body, headers, retry:false});
+  }
+  if (!r.ok) throw new Error(await r.text());
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+async function refresh(){
+  const r = await fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:session.refresh_token})});
+  if(!r.ok){ session=null; store.set(null); showLogin(); return false; }
+  session = await r.json(); store.set(session); return true;
+}
+async function login(email,password){
+  const r = await fetch(SUPA_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:SUPA_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  if(!r.ok) throw new Error('אימייל או סיסמה לא נכונים');
+  session = await r.json(); store.set(session);
+}
+const get = (t,q='') => api(`/rest/v1/${t}?${q}`);
+const post = (t,b) => api(`/rest/v1/${t}`,{method:'POST',body:b,headers:{Prefer:'return=representation'}});
+const patch = (t,q,b) => api(`/rest/v1/${t}?${q}`,{method:'PATCH',body:b});
+const del = (t,q) => api(`/rest/v1/${t}?${q}`,{method:'DELETE'});
+
+// ---------- state ----------
+const S = { artists:[], byId:{}, me:null, page:'home', cal:{y:new Date().getFullYear(), m:new Date().getMonth()}, filter:'all', incomeYear:new Date().getFullYear() };
+const ils = n => '₪' + Math.round(Number(n)||0).toLocaleString('he-IL');
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const fmtDate = d => { const [y,m,dd]=d.split('-'); return `${dd}.${m}` };
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pill = a => `<span class="pill ${PILL[a.slug]||''}">${esc(a.name)}</span>`;
+const $ = sel => document.querySelector(sel);
+
+// ---------- boot ----------
+function showLogin(){ $('#login').classList.remove('hidden'); $('#app').classList.add('hidden'); }
+$('#loginForm').onsubmit = async e => { e.preventDefault(); $('#loginErr').textContent=''; const f=new FormData(e.target); try{ await login(f.get('email'),f.get('password')); await boot(); }catch(err){ $('#loginErr').textContent=err.message } };
+$('#logout').onclick = () => { session=null; store.set(null); location.reload(); };
+document.querySelectorAll('nav [data-page]').forEach(b=>b.onclick=()=>go(b.dataset.page));
+function go(p){ S.page=p; document.querySelectorAll('nav [data-page]').forEach(b=>b.classList.toggle('on',b.dataset.page===p)); render(); }
+
+async function boot(){
+  if(!session){ showLogin(); return; }
+  try{
+    const prof = await get('profiles','select=role,full_name');
+    if(!prof.length || prof[0].role!=='admin'){ $('#loginErr').textContent='למשתמש הזה אין הרשאת מנהל'; session=null; store.set(null); showLogin(); return; }
+    S.me = prof[0];
+    S.artists = await get('artists','select=id,slug,name,commission_pct&order=name');
+    S.artists.forEach(a=>S.byId[a.id]=a);
+  }catch(e){ showLogin(); return; }
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#who').textContent = 'מחובר: ' + (S.me.full_name||'');
+  render();
+}
+
+// ---------- render ----------
+async function render(){
+  const m=$('#main'); m.innerHTML='<div class="muted">טוען…</div>';
+  try{ await ({home,calendar,income,tasks,agency,goals})[S.page](m); }
+  catch(e){ m.innerHTML=`<div class="card err">שגיאה: ${esc(e.message)}</div>`; }
+}
+
+// ===== בית =====
+async function home(m){
+  const now=new Date(); const y=now.getFullYear(), mo=now.getMonth();
+  const first=`${y}-${String(mo+1).padStart(2,'0')}-01`;
+  const next=ymd(new Date(y,mo+1,1));
+  const in14=ymd(new Date(now.getTime()+14*864e5)); const today=ymd(now);
+  const [monthGigs, upcoming, openTasks, log, agencyTodos] = await Promise.all([
+    get('events',`select=artist_id,price&type=eq.gig&date=gte.${first}&date=lt.${next}`),
+    get('events',`select=id,artist_id,date,title,location,price,type&date=gte.${today}&date=lte.${in14}&order=date`),
+    get('tasks','select=artist_id,status&status=neq.done'),
+    get('activity_log','select=id,artist_id,action,after,before,created_at&entity=eq.event&order=id.desc&limit=10'),
+    get('reminders','select=id,title,due_at,assignee,done&artist_id=is.null&done=eq.false&order=due_at&limit=6'),
+  ]);
+  const income = monthGigs.reduce((s,e)=>s+Number(e.price||0),0);
+  const byArtist = {}; monthGigs.forEach(e=>{ byArtist[e.artist_id]=(byArtist[e.artist_id]||0)+Number(e.price||0) });
+  const commission = S.artists.reduce((s,a)=>s+(byArtist[a.id]||0)*a.commission_pct/100,0);
+  m.innerHTML = `
+    <h1>${HE_MONTHS[mo]} ${y}</h1>
+    <div class="row" style="margin-bottom:14px">
+      <div class="card tile"><div class="k">הכנסות החודש (כל הדיג'ייז)</div><div class="v num">${ils(income)}</div><div class="s">${monthGigs.length} גיגים</div></div>
+      <div class="card tile"><div class="k">לסוכנות (30%)</div><div class="v num">${ils(commission)}</div><div class="s">${S.artists.map(a=>`${a.name.split(' ')[0]} ${ils((byArtist[a.id]||0)*a.commission_pct/100)}`).join(' · ')}</div></div>
+      <div class="card tile"><div class="k">משימות פתוחות</div><div class="v num">${openTasks.length}</div><div class="s">${S.artists.map(a=>`${a.name.split(' ')[0]} ${openTasks.filter(t=>t.artist_id===a.id).length}`).join(' · ')}</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>14 הימים הקרובים</h2>
+        ${upcoming.length? `<table><tr><th>תאריך</th><th>דיג'יי</th><th>אירוע</th><th>סכום</th></tr>${upcoming.map(e=>`<tr><td class="num">${fmtDate(e.date)}</td><td>${pill(S.byId[e.artist_id])}</td><td>${esc(e.title)}${e.location?` <span class="muted">· ${esc(e.location)}</span>`:''}${e.type!=='gig'?` <span class="muted">(${esc(e.type)})</span>`:''}</td><td class="num">${e.type==='gig'?ils(e.price):''}</td></tr>`).join('')}</table>` : '<div class="muted">אין אירועים בשבועיים הקרובים</div>'}
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:14px"><h2>מה קרה לאחרונה</h2>
+          <ul class="feed" style="list-style:none;margin:0;padding:0">${log.length? log.map(l=>{ const r=l.after||l.before||{}; const v={insert:'הוסיף',update:'עדכן',delete:'מחק'}[l.action]; return `<li><time>${new Date(l.created_at).toLocaleDateString('he-IL')}</time>${pill(S.byId[l.artist_id]||{name:'?'})} ${v} <b>${esc(r.title)}</b> ${r.date?fmtDate(r.date):''} ${r.type==='gig'&&r.price?`· ${ils(r.price)}`:''}</li>` }).join('') : '<li class="muted">הפיד יתמלא מעכשיו, בכל שינוי שדיג\'יי עושה ביומן שלו</li>'}</ul>
+        </div>
+        <div class="card"><h2>ניהול פנימי – פתוח</h2>
+          ${agencyTodos.length? agencyTodos.map(t=>`<div class="task"><div class="t">${esc(t.title)}<small>${t.assignee||''} · ${new Date(t.due_at).toLocaleDateString('he-IL')}</small></div></div>`).join('') : '<div class="muted">אין משימות פתוחות</div>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ===== יומן =====
+async function calendar(m){
+  const {y,m:mo}=S.cal;
+  const first=new Date(y,mo,1), last=new Date(y,mo+1,0);
+  const from=ymd(first), to=ymd(last);
+  let q=`select=id,artist_id,date,title,location,price,type,start_time,contact_name,payment_status&date=gte.${from}&date=lte.${to}&order=date`;
+  if(S.filter!=='all') q+=`&artist_id=eq.${S.filter}`;
+  const evs=await get('events',q);
+  const byDay={}; evs.forEach(e=>(byDay[e.date]=byDay[e.date]||[]).push(e));
+  const startPad=first.getDay(); const cells=[];
+  for(let i=0;i<startPad;i++) cells.push(null);
+  for(let d=1;d<=last.getDate();d++) cells.push(new Date(y,mo,d));
+  m.innerHTML=`
+    <h1>יומן משותף</h1>
+    <div class="row" style="align-items:center;margin-bottom:14px;justify-content:space-between">
+      <div class="tabs" style="margin:0">
+        <button class="${S.filter==='all'?'on':''}" data-f="all">כולם</button>
+        ${S.artists.map(a=>`<button class="${S.filter===a.id?'on':''}" data-f="${a.id}"><span class="dot" style="background:${COLORS[a.slug]}"></span>${esc(a.name)}</button>`).join('')}
+      </div>
+      <div class="row" style="align-items:center;gap:8px">
+        <button class="btn ghost sm" id="prev">‹</button><b>${HE_MONTHS[mo]} ${y}</b><button class="btn ghost sm" id="next">›</button>
+        <button class="btn sm" id="addGig">+ גיג חדש</button>
+      </div>
+    </div>
+    <div class="cal">${HE_DAYS.map(d=>`<div class="h">${d}</div>`).join('')}
+      ${cells.map(d=>{ if(!d) return '<div></div>'; const k=ymd(d); const list=byDay[k]||[]; return `<div class="d"><div class="n">${d.getDate()}</div>${list.map(e=>`<div class="ev" data-id="${e.id}" style="background:${COLORS[S.byId[e.artist_id]?.slug]||'#999'};${e.type!=='gig'?'opacity:.55':''}" title="${esc(e.title)}">${esc(e.title)}</div>`).join('')}</div>` }).join('')}
+    </div>
+    <div class="card" style="margin-top:14px"><h2>רשימת החודש</h2>
+      ${evs.length?`<table><tr><th>תאריך</th><th>דיג'יי</th><th>אירוע</th><th>מקום</th><th>סכום</th><th></th></tr>${evs.map(e=>`<tr><td class="num">${fmtDate(e.date)}${e.start_time?` <span class="muted">${e.start_time.slice(0,5)}</span>`:''}</td><td>${pill(S.byId[e.artist_id])}</td><td>${esc(e.title)}${e.type!=='gig'?` <span class="muted">(${esc(e.type)})</span>`:''}</td><td class="muted">${esc(e.location||'')}</td><td class="num">${e.type==='gig'?ils(e.price):''}</td><td><button class="btn ghost sm" data-edit="${e.id}">ערוך</button></td></tr>`).join('')}</table>`:'<div class="muted">אין אירועים החודש</div>'}
+    </div>`;
+  m.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{S.filter=b.dataset.f;render()});
+  $('#prev').onclick=()=>{ S.cal.m--; if(S.cal.m<0){S.cal.m=11;S.cal.y--} render() };
+  $('#next').onclick=()=>{ S.cal.m++; if(S.cal.m>11){S.cal.m=0;S.cal.y++} render() };
+  $('#addGig').onclick=()=>gigForm();
+  m.querySelectorAll('[data-edit],[data-id]').forEach(el=>el.onclick=()=>gigForm(evs.find(e=>e.id===(el.dataset.edit||el.dataset.id))));
+}
+
+function gigForm(e){
+  const isNew=!e; e=e||{type:'gig',date:ymd(new Date())};
+  modal(`
+    <h2>${isNew?'גיג חדש':'עריכת אירוע'}</h2>
+    <form id="gf" class="inline">
+      <label class="field">דיג'יי<select name="artist_id" ${isNew?'':'disabled'}>${S.artists.map(a=>`<option value="${a.id}" ${a.id===e.artist_id?'selected':''}>${esc(a.name)}</option>`).join('')}</select></label>
+      <label class="field">סוג<select name="type"><option value="gig" ${e.type==='gig'?'selected':''}>גיג</option><option value="studio" ${e.type==='studio'?'selected':''}>סטודיו</option><option value="meeting" ${e.type==='meeting'?'selected':''}>פגישה</option><option value="other" ${e.type==='other'?'selected':''}>אחר</option></select></label>
+      <label class="field">תאריך<input name="date" type="date" value="${e.date}" required></label>
+      <label class="field">שעה<input name="start_time" type="time" value="${(e.start_time||'').slice(0,5)}"></label>
+      <label class="field" style="grid-column:span 2">שם האירוע<input name="title" value="${esc(e.title||'')}" required></label>
+      <label class="field" style="grid-column:span 2">מקום<input name="location" value="${esc(e.location||'')}"></label>
+      <label class="field">סכום (₪)<input name="price" type="number" min="0" step="1" value="${e.price??''}"></label>
+      <label class="field">איש קשר<input name="contact_name" value="${esc(e.contact_name||'')}"></label>
+      <label class="field">טלפון<input name="contact_phone" value="${esc(e.contact_phone||'')}"></label>
+      <label class="field" style="grid-column:1/-1">הערות<textarea name="notes" rows="2">${esc(e.notes||'')}</textarea></label>
+      <div style="grid-column:1/-1;display:flex;gap:8px;justify-content:flex-start;align-items:center">
+        <button class="btn" type="submit">${isNew?'הוסף':'שמור'}</button>
+        <button class="btn ghost" type="button" id="mclose">ביטול</button>
+        ${isNew?'':'<button class="btn ghost" type="button" id="mdel" style="margin-right:auto;color:#b32d2c">מחק</button>'}
+      </div>
+    </form>`);
+  $('#gf').onsubmit=async ev=>{ ev.preventDefault(); const f=Object.fromEntries(new FormData(ev.target)); f.price=Number(f.price||0); if(!f.start_time) delete f.start_time; if(!f.artist_id) f.artist_id=e.artist_id;
+    try{ if(isNew) await post('events',f); else { delete f.artist_id; await patch('events',`id=eq.${e.id}`,f); } closeModal(); render(); }catch(err){ alert('שגיאה: '+err.message) } };
+  $('#mclose').onclick=closeModal;
+  if($('#mdel')) $('#mdel').onclick=async()=>{ if(confirm('למחוק את האירוע?')){ await del('events',`id=eq.${e.id}`); closeModal(); render(); } };
+}
+function modal(html){ const md=$('#modal'); md.innerHTML=`<div class="card">${html}</div>`; md.classList.remove('hidden'); md.onclick=ev=>{ if(ev.target===md) closeModal() }; }
+function closeModal(){ $('#modal').classList.add('hidden'); }
+
+// ===== הכנסות =====
+async function income(m){
+  const y=S.incomeYear;
+  const rows=await get('artist_monthly_income',`select=artist_id,month,gigs,income,commission&month=gte.${y}-01-01&month=lt.${y+1}-01-01&order=month`);
+  const months=[...Array(12).keys()];
+  const cell={}; rows.forEach(r=>{ cell[r.artist_id+'|'+new Date(r.month).getMonth()]=r });
+  const tot=a=>rows.filter(r=>r.artist_id===a.id).reduce((s,r)=>({inc:s.inc+Number(r.income),com:s.com+Number(r.commission),g:s.g+Number(r.gigs)}),{inc:0,com:0,g:0});
+  const totals=S.artists.map(a=>({a,...tot(a)}));
+  const all=totals.reduce((s,t)=>({inc:s.inc+t.inc,com:s.com+t.com,g:s.g+t.g}),{inc:0,com:0,g:0});
+  const maxM=Math.max(1,...months.map(i=>S.artists.reduce((s,a)=>s+Number(cell[a.id+'|'+i]?.income||0),0)));
+  m.innerHTML=`
+    <div class="row" style="justify-content:space-between;align-items:center"><h1>הכנסות ${y}</h1>
+      <div class="row" style="gap:8px"><button class="btn ghost sm" id="py">‹ ${y-1}</button><button class="btn ghost sm" id="ny">${y+1} ›</button></div></div>
+    <div class="row" style="margin-bottom:14px">
+      <div class="card tile"><div class="k">סה"כ הכנסות ${y}</div><div class="v num">${ils(all.inc)}</div><div class="s">${all.g} גיגים</div></div>
+      <div class="card tile"><div class="k">לסוכנות (30%)</div><div class="v num">${ils(all.com)}</div><div class="s">מתחלק בינך לבין ירין</div></div>
+      <div class="card tile"><div class="k">נשאר לדיג'ייז (70%)</div><div class="v num">${ils(all.inc-all.com)}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:14px"><h2>לפי דיג'יי</h2>
+      <table><tr><th>דיג'יי</th><th>גיגים</th><th>הכנסות</th><th>לסוכנות</th><th>נשאר לדיג'יי</th><th>ממוצע לגיג</th></tr>
+      ${totals.map(t=>`<tr><td>${pill(t.a)}</td><td class="num">${t.g}</td><td class="num"><b>${ils(t.inc)}</b></td><td class="num">${ils(t.com)}</td><td class="num">${ils(t.inc-t.com)}</td><td class="num muted">${t.g?ils(t.inc/t.g):'–'}</td></tr>`).join('')}
+      <tr><td><b>סה"כ</b></td><td class="num"><b>${all.g}</b></td><td class="num"><b>${ils(all.inc)}</b></td><td class="num"><b>${ils(all.com)}</b></td><td class="num"><b>${ils(all.inc-all.com)}</b></td><td></td></tr></table>
+    </div>
+    <div class="card" style="margin-bottom:14px"><h2>לפי חודש</h2>
+      <div class="bars">${months.map(i=>{ const segs=S.artists.map(a=>({a,v:Number(cell[a.id+'|'+i]?.income||0)})); const sum=segs.reduce((s,x)=>s+x.v,0); return `<div class="bar"><div class="num" style="font-size:10px">${sum?ils(sum):''}</div><div class="stack" style="height:${Math.round(sum/maxM*100)}px">${segs.map(x=>`<div class="seg" style="height:${sum?x.v/sum*100:0}%;background:${COLORS[x.a.slug]}" title="${esc(x.a.name)} ${ils(x.v)}"></div>`).join('')}</div><div>${HE_MONTHS[i].slice(0,3)}</div></div>` }).join('')}</div>
+      <table style="margin-top:14px"><tr><th>חודש</th>${S.artists.map(a=>`<th>${esc(a.name)}</th>`).join('')}<th>סה"כ</th><th>לסוכנות</th></tr>
+      ${months.map(i=>{ const vals=S.artists.map(a=>cell[a.id+'|'+i]); const sum=vals.reduce((s,r)=>s+Number(r?.income||0),0); if(!sum) return ''; const com=vals.reduce((s,r)=>s+Number(r?.commission||0),0); return `<tr><td>${HE_MONTHS[i]}</td>${vals.map(r=>`<td class="num">${r?ils(r.income):'<span class="muted">–</span>'} ${r?`<span class="muted" style="font-size:11px">(${r.gigs})</span>`:''}</td>`).join('')}<td class="num"><b>${ils(sum)}</b></td><td class="num">${ils(com)}</td></tr>` }).join('')}</table>
+      <div class="muted" style="font-size:12px;margin-top:10px">ההכנסה = סכום הגיגים לפי תאריך ההופעה, כפי שהדיג'ייז רושמים ביומן. הסכומים בשקלים.</div>
+    </div>`;
+  $('#py').onclick=()=>{S.incomeYear--;render()}; $('#ny').onclick=()=>{S.incomeYear++;render()};
+}
+
+// ===== משימות הדיג'ייז =====
+async function tasks(m){
+  const all=await get('tasks','select=id,artist_id,title,category,description,status,due_date&order=status,due_date.nullslast,created_at.desc');
+  m.innerHTML=`<div class="row" style="justify-content:space-between;align-items:center"><h1>משימות הדיג'ייז</h1><button class="btn sm" id="addTask">+ משימה</button></div>
+    <div class="row">${S.artists.map(a=>{ const ts=all.filter(t=>t.artist_id===a.id); const open=ts.filter(t=>t.status!=='done'); return `<div class="card" style="flex:1;min-width:280px"><h2><span class="dot" style="background:${COLORS[a.slug]}"></span>${esc(a.name)} <span class="muted" style="font-weight:400">· ${open.length} פתוחות</span></h2>
+      ${ts.length? ts.map(t=>taskRow(t)).join('') : '<div class="muted">אין משימות</div>'}</div>` }).join('')}</div>`;
+  bindTasks(m,'tasks');
+  $('#addTask').onclick=()=>modal(`<h2>משימה חדשה</h2><form id="tf" class="inline">
+    <label class="field">דיג'יי<select name="artist_id">${S.artists.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label>
+    <label class="field">קטגוריה<input name="category" value="כללי" required></label>
+    <label class="field" style="grid-column:1/-1">משימה<input name="title" required></label>
+    <label class="field">תאריך יעד<input name="due_date" type="date"></label>
+    <div style="grid-column:1/-1;display:flex;gap:8px"><button class="btn" type="submit">הוסף</button><button class="btn ghost" type="button" id="mclose">ביטול</button></div></form>`,
+    ()=>{ $('#tf').onsubmit=async ev=>{ev.preventDefault(); const f=Object.fromEntries(new FormData(ev.target)); if(!f.due_date) delete f.due_date; await post('tasks',f); closeModal(); render(); }; $('#mclose').onclick=closeModal; });
+}
+function taskRow(t){ return `<div class="task ${t.status==='done'?'done':''}"><input type="checkbox" data-tid="${t.id}" ${t.status==='done'?'checked':''}><div class="t">${esc(t.title)}<small>${esc(t.category||'')}${t.due_date?` · עד ${fmtDate(t.due_date)}`:''}${t.status==='in_progress'?' · בתהליך':''}</small></div><button class="btn ghost sm" data-tdel="${t.id}">✕</button></div>` }
+function bindTasks(m,table){
+  m.querySelectorAll('[data-tid]').forEach(c=>c.onchange=async()=>{ await patch(table,`id=eq.${c.dataset.tid}`, table==='tasks'?{status:c.checked?'done':'open'}:{done:c.checked}); render(); });
+  m.querySelectorAll('[data-tdel]').forEach(b=>b.onclick=async()=>{ if(confirm('למחוק?')){ await del(table,`id=eq.${b.dataset.tdel}`); render(); } });
+}
+// modal helper with after-render hook
+const _modal=modal; modal=function(html,after){ _modal(html); if(after) after(); };
+
+// ===== ניהול פנימי (חמו + ירין) =====
+async function agency(m){
+  const items=await get('reminders','select=id,title,due_at,assignee,done,created_at&artist_id=is.null&order=done,due_at');
+  const who=x=>({chemo:'חמו',yarin:'ירין',both:'שנינו'}[x]||x||'');
+  m.innerHTML=`<h1>ניהול פנימי</h1><div class="muted" style="margin:-10px 0 14px">משימות והחלטות בינך לבין ירין. הדיג'ייז לא רואים את זה.</div>
+    <div class="card" style="margin-bottom:14px"><form id="af" class="inline">
+      <label class="field" style="grid-column:span 2">משימה / נושא<input name="title" required placeholder="למשל: לסגור עם אסף על נובמבר"></label>
+      <label class="field">אחראי<select name="assignee"><option value="chemo">חמו</option><option value="yarin">ירין</option><option value="both">שנינו</option></select></label>
+      <label class="field">עד<input name="due" type="date" value="${ymd(new Date())}"></label>
+      <button class="btn" type="submit">הוסף</button></form></div>
+    <div class="grid2">
+      <div class="card"><h2>פתוח</h2>${items.filter(i=>!i.done).map(i=>`<div class="task"><input type="checkbox" data-tid="${i.id}"><div class="t">${esc(i.title)}<small>${who(i.assignee)} · עד ${new Date(i.due_at).toLocaleDateString('he-IL')}</small></div><button class="btn ghost sm" data-tdel="${i.id}">✕</button></div>`).join('')||'<div class="muted">ריק</div>'}</div>
+      <div class="card"><h2>בוצע</h2>${items.filter(i=>i.done).map(i=>`<div class="task done"><input type="checkbox" checked data-tid="${i.id}"><div class="t">${esc(i.title)}<small>${who(i.assignee)}</small></div><button class="btn ghost sm" data-tdel="${i.id}">✕</button></div>`).join('')||'<div class="muted">ריק</div>'}</div>
+    </div>`;
+  $('#af').onsubmit=async ev=>{ ev.preventDefault(); const f=Object.fromEntries(new FormData(ev.target)); await post('reminders',{title:f.title,assignee:f.assignee,due_at:f.due+'T09:00:00+03:00',channel:'app'}); render(); };
+  bindTasks(m,'reminders');
+}
+
+// ===== מטרות =====
+async function goals(m){
+  const y=new Date().getFullYear();
+  const [gs, inc]=await Promise.all([ get('goals',`select=id,artist_id,period,period_start,metric,target,note&period_start=gte.${y}-01-01&order=period_start.desc`), get('artist_monthly_income',`select=artist_id,month,gigs,income&month=gte.${y}-01-01`) ]);
+  const progress=g=>{ const start=new Date(g.period_start); const end=new Date(start); if(g.period==='month') end.setMonth(end.getMonth()+1); else if(g.period==='quarter') end.setMonth(end.getMonth()+3); else end.setFullYear(end.getFullYear()+1);
+    const rows=inc.filter(r=>(g.artist_id?r.artist_id===g.artist_id:true) && new Date(r.month)>=start && new Date(r.month)<end);
+    return g.metric==='gigs_count'? rows.reduce((s,r)=>s+Number(r.gigs),0) : rows.reduce((s,r)=>s+Number(r.income),0); };
+  const name=g=>g.artist_id? S.byId[g.artist_id]?.name : 'הסוכנות';
+  const per=g=>({month:HE_MONTHS[new Date(g.period_start).getMonth()],quarter:'רבעון מ-'+HE_MONTHS[new Date(g.period_start).getMonth()],year:'שנת '+new Date(g.period_start).getFullYear()}[g.period]);
+  m.innerHTML=`<h1>מטרות</h1>
+    <div class="card" style="margin-bottom:14px"><form id="gf2" class="inline">
+      <label class="field">למי<select name="artist_id"><option value="">הסוכנות כולה</option>${S.artists.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label>
+      <label class="field">תקופה<select name="period"><option value="month">חודש</option><option value="quarter">רבעון</option><option value="year">שנה</option></select></label>
+      <label class="field">מתחיל ב<input name="period_start" type="date" value="${y}-${String(new Date().getMonth()+1).padStart(2,'0')}-01"></label>
+      <label class="field">מדד<select name="metric"><option value="income_ils">הכנסה (₪)</option><option value="gigs_count">מספר גיגים</option></select></label>
+      <label class="field">יעד<input name="target" type="number" min="1" required></label>
+      <button class="btn" type="submit">הוסף מטרה</button></form>
+      <div class="muted" style="font-size:12px;margin-top:8px">הדיג'ייז יראו את המטרות שלהם באפליקציה שלהם בשלב הבא.</div></div>
+    <div class="row">${gs.map(g=>{ const p=progress(g); const pct=Math.min(100,Math.round(p/Number(g.target)*100)); return `<div class="card" style="flex:1;min-width:260px"><div class="row" style="justify-content:space-between"><b>${esc(name(g))}</b><button class="btn ghost sm" data-gdel="${g.id}">✕</button></div>
+      <div class="muted" style="font-size:13px">${per(g)} · ${g.metric==='gigs_count'?'גיגים':'הכנסה'}</div>
+      <div style="font-size:20px;font-weight:700;margin-top:6px" class="num">${g.metric==='gigs_count'?p:ils(p)} <span class="muted" style="font-size:13px;font-weight:400">/ ${g.metric==='gigs_count'?g.target:ils(g.target)}</span></div>
+      <div class="bar-goal"><i style="width:${pct}%;background:${pct>=100?'var(--ok)':'#111'}"></i></div><div class="muted" style="font-size:12px;margin-top:4px">${pct}%</div></div>` }).join('')||'<div class="muted">עוד אין מטרות. תוסיף אחת למעלה.</div>'}</div>`;
+  $('#gf2').onsubmit=async ev=>{ ev.preventDefault(); const f=Object.fromEntries(new FormData(ev.target)); if(!f.artist_id) delete f.artist_id; f.target=Number(f.target); await post('goals',f); render(); };
+  m.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=async()=>{ if(confirm('למחוק את המטרה?')){ await del('goals',`id=eq.${b.dataset.gdel}`); render(); } });
+}
+
+boot();
+</script>
+</body>
+</html>
