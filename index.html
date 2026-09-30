@@ -70,6 +70,12 @@
   .task .t{flex:1}
   .task .t small{display:block;color:var(--muted);font-size:12px}
   .task.done .t{text-decoration:line-through;color:var(--muted)}
+  .dayhead{font-size:12px;color:var(--muted);margin:12px 0 4px;padding-bottom:4px;border-bottom:1px solid #f0efeb}
+  .dayhead:first-child{margin-top:0}
+  .gig{display:flex;align-items:center;gap:10px;padding:7px 0;cursor:pointer;border-radius:8px}
+  .gig:hover{background:#faf9f6}
+  .gig .gt{flex:1;min-width:0}
+  .gig .gt small{display:block;color:var(--muted);font-size:12px}
   .feed li{padding:7px 0;border-bottom:1px solid #f0efeb;font-size:13px}
   .feed li:last-child{border-bottom:0}
   .feed time{color:var(--muted);font-size:11px;margin-right:6px}
@@ -152,7 +158,7 @@ const patch = (t,q,b) => api(`/rest/v1/${t}?${q}`,{method:'PATCH',body:b});
 const del = (t,q) => api(`/rest/v1/${t}?${q}`,{method:'DELETE'});
 
 // ---------- state ----------
-const S = { artists:[], byId:{}, me:null, page:'home', cal:{y:new Date().getFullYear(), m:new Date().getMonth()}, filter:'all', incomeYear:new Date().getFullYear() };
+const S = { artists:[], byId:{}, me:null, page:'home', home:{y:new Date().getFullYear(), m:new Date().getMonth()}, cal:{y:new Date().getFullYear(), m:new Date().getMonth()}, filter:'all', incomeYear:new Date().getFullYear() };
 const ils = n => '₪' + Math.round(Number(n)||0).toLocaleString('he-IL');
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const fmtDate = d => { const [y,m,dd]=d.split('-'); return `${dd}.${m}` };
@@ -190,40 +196,53 @@ async function render(){
 
 // ===== בית =====
 async function home(m){
-  const now=new Date(); const y=now.getFullYear(), mo=now.getMonth();
+  const now=new Date(); const {y,m:mo}=S.home; const isCur=y===now.getFullYear()&&mo===now.getMonth();
   const first=`${y}-${String(mo+1).padStart(2,'0')}-01`;
-  const next=ymd(new Date(y,mo+1,1));
-  const in14=ymd(new Date(now.getTime()+14*864e5)); const today=ymd(now);
+  const next=ymd(new Date(y,mo+1,1)); const lastDay=ymd(new Date(y,mo+1,0));
+  const today=ymd(now);
   const [monthGigs, upcoming, openTasks, log, agencyTodos] = await Promise.all([
     get('events',`select=artist_id,price&type=eq.gig&date=gte.${first}&date=lt.${next}`),
-    get('events',`select=id,artist_id,date,title,location,price,type&date=gte.${today}&date=lte.${in14}&order=date`),
+    get('events',`select=id,artist_id,date,title,location,price,type,start_time&type=eq.gig&date=gte.${first}&date=lte.${lastDay}&order=date,start_time`),
     get('tasks','select=artist_id,status&status=neq.done'),
-    get('activity_log','select=id,artist_id,action,after,before,created_at&entity=eq.event&order=id.desc&limit=10'),
+    get('activity_log','select=id,artist_id,action,after,before,created_at&entity=eq.event&actor=not.is.null&order=id.desc&limit=8'),
     get('reminders','select=id,title,due_at,assignee,done&artist_id=is.null&done=eq.false&order=due_at&limit=6'),
   ]);
-  const income = monthGigs.reduce((s,e)=>s+Number(e.price||0),0);
-  const byArtist = {}; monthGigs.forEach(e=>{ byArtist[e.artist_id]=(byArtist[e.artist_id]||0)+Number(e.price||0) });
-  const commission = S.artists.reduce((s,a)=>s+(byArtist[a.id]||0)*a.commission_pct/100,0);
+  const rows=S.artists.map(a=>{ const gs=monthGigs.filter(e=>e.artist_id===a.id); const inc=gs.reduce((s,e)=>s+Number(e.price||0),0); const com=inc*a.commission_pct/100; return {a,n:gs.length,inc,com,keep:inc-com}; });
+  const tot=rows.reduce((s,r)=>({n:s.n+r.n,inc:s.inc+r.inc,com:s.com+r.com,keep:s.keep+r.keep}),{n:0,inc:0,com:0,keep:0});
+  const byDay={}; upcoming.forEach(e=>(byDay[e.date]=byDay[e.date]||[]).push(e));
+  const dayLabel=d=>{ const dt=new Date(d+'T00:00:00'); const diff=Math.round((dt-new Date(today+'T00:00:00'))/864e5); const w=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][dt.getDay()]; return `${diff===0?'היום':diff===1?'מחר':'יום '+w} · ${fmtDate(d)}${diff<0?' <span style="opacity:.6">(עבר)</span>':''}`; };
   m.innerHTML = `
-    <h1>${HE_MONTHS[mo]} ${y}</h1>
+    <div class="row" style="justify-content:space-between;align-items:center"><h1>${HE_MONTHS[mo]} ${y}${isCur?'':' <span class="muted" style="font-size:14px;font-weight:400">(לא החודש הנוכחי)</span>'}</h1>
+      <div class="row" style="gap:8px;align-items:center"><button class="btn ghost sm" id="hprev">‹ ${HE_MONTHS[(mo+11)%12]}</button>${isCur?'':'<button class="btn ghost sm" id="hnow">היום</button>'}<button class="btn ghost sm" id="hnext">${HE_MONTHS[(mo+1)%12]} ›</button></div></div>
     <div class="row" style="margin-bottom:14px">
-      <div class="card tile"><div class="k">הכנסות החודש (כל הדיג'ייז)</div><div class="v num">${ils(income)}</div><div class="s">${monthGigs.length} גיגים</div></div>
-      <div class="card tile"><div class="k">לסוכנות (30%)</div><div class="v num">${ils(commission)}</div><div class="s">${S.artists.map(a=>`${a.name.split(' ')[0]} ${ils((byArtist[a.id]||0)*a.commission_pct/100)}`).join(' · ')}</div></div>
-      <div class="card tile"><div class="k">משימות פתוחות</div><div class="v num">${openTasks.length}</div><div class="s">${S.artists.map(a=>`${a.name.split(' ')[0]} ${openTasks.filter(t=>t.artist_id===a.id).length}`).join(' · ')}</div></div>
+      <div class="card tile"><div class="k">הכנסות ${HE_MONTHS[mo]}</div><div class="v num">${ils(tot.inc)}</div><div class="s">${tot.n} גיגים · שלושת הדיג'ייז</div></div>
+      <div class="card tile"><div class="k">לסוכנות (30%)</div><div class="v num">${ils(tot.com)}</div><div class="s">מתחלק בינך לבין ירין</div></div>
+      <div class="card tile"><div class="k">נשאר לדיג'ייז</div><div class="v num">${ils(tot.keep)}</div><div class="s">משימות פתוחות: ${openTasks.length}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:14px"><h2>החודש לפי דיג'יי</h2>
+      <table><tr><th>דיג'יי</th><th>גיגים</th><th>מרוויח החודש</th><th>מוריד לסוכנות</th><th>נשאר לו</th></tr>
+      ${rows.map(r=>`<tr><td>${pill(r.a)}</td><td class="num">${r.n}</td><td class="num"><b>${ils(r.inc)}</b></td><td class="num">${ils(r.com)}</td><td class="num muted">${ils(r.keep)}</td></tr>`).join('')}
+      <tr><td><b>סה"כ</b></td><td class="num"><b>${tot.n}</b></td><td class="num"><b>${ils(tot.inc)}</b></td><td class="num"><b>${ils(tot.com)}</b></td><td class="num"><b>${ils(tot.keep)}</b></td></tr></table>
     </div>
     <div class="grid2">
-      <div class="card"><h2>14 הימים הקרובים</h2>
-        ${upcoming.length? `<table><tr><th>תאריך</th><th>דיג'יי</th><th>אירוע</th><th>סכום</th></tr>${upcoming.map(e=>`<tr><td class="num">${fmtDate(e.date)}</td><td>${pill(S.byId[e.artist_id])}</td><td>${esc(e.title)}${e.location?` <span class="muted">· ${esc(e.location)}</span>`:''}${e.type!=='gig'?` <span class="muted">(${esc(e.type)})</span>`:''}</td><td class="num">${e.type==='gig'?ils(e.price):''}</td></tr>`).join('')}</table>` : '<div class="muted">אין אירועים בשבועיים הקרובים</div>'}
+      <div class="card"><h2>הגיגים של ${HE_MONTHS[mo]} <span class="muted" style="font-weight:400">· ${upcoming.length}</span></h2>
+        ${upcoming.length? Object.keys(byDay).map(d=>`
+          <div class="dayhead">${dayLabel(d)}</div>
+          ${byDay[d].map(e=>`<div class="gig" data-id="${e.id}"><span class="dot" style="background:${COLORS[S.byId[e.artist_id]?.slug]||'#999'}"></span><div class="gt"><b>${esc(e.title)}</b><small>${esc(S.byId[e.artist_id]?.name||'')}${e.location?` · ${esc(e.location)}`:''}${e.start_time?` · ${e.start_time.slice(0,5)}`:''}</small></div><div class="num">${e.price?ils(e.price):'<span class="muted">בלי סכום</span>'}</div></div>`).join('')}`).join('') : '<div class="muted">אין גיגים בחודש הזה</div>'}
       </div>
       <div>
         <div class="card" style="margin-bottom:14px"><h2>מה קרה לאחרונה</h2>
-          <ul class="feed" style="list-style:none;margin:0;padding:0">${log.length? log.map(l=>{ const r=l.after||l.before||{}; const v={insert:'הוסיף',update:'עדכן',delete:'מחק'}[l.action]; return `<li><time>${new Date(l.created_at).toLocaleDateString('he-IL')}</time>${pill(S.byId[l.artist_id]||{name:'?'})} ${v} <b>${esc(r.title)}</b> ${r.date?fmtDate(r.date):''} ${r.type==='gig'&&r.price?`· ${ils(r.price)}`:''}</li>` }).join('') : '<li class="muted">הפיד יתמלא מעכשיו, בכל שינוי שדיג\'יי עושה ביומן שלו</li>'}</ul>
+          <ul class="feed" style="list-style:none;margin:0;padding:0">${log.length? log.map(l=>{ const r=l.after||l.before||{}; const v={insert:'הוסיף',update:'עדכן',delete:'מחק'}[l.action]; return `<li><time>${new Date(l.created_at).toLocaleDateString('he-IL')}</time>${pill(S.byId[l.artist_id]||{name:'?'})} ${v} <b>${esc(r.title)}</b> ${r.date?fmtDate(r.date):''} ${r.type==='gig'&&r.price?`· ${ils(r.price)}`:''}</li>` }).join('') : '<li class="muted">הפיד מתמלא מכל שינוי שדיג\'יי עושה ביומן שלו</li>'}</ul>
         </div>
         <div class="card"><h2>ניהול פנימי – פתוח</h2>
-          ${agencyTodos.length? agencyTodos.map(t=>`<div class="task"><div class="t">${esc(t.title)}<small>${t.assignee||''} · ${new Date(t.due_at).toLocaleDateString('he-IL')}</small></div></div>`).join('') : '<div class="muted">אין משימות פתוחות</div>'}
+          ${agencyTodos.length? agencyTodos.map(t=>`<div class="task"><div class="t">${esc(t.title)}<small>${({chemo:'חמו',yarin:'ירין',both:'שנינו'})[t.assignee]||''} · ${new Date(t.due_at).toLocaleDateString('he-IL')}</small></div></div>`).join('') : '<div class="muted">אין משימות פתוחות</div>'}
         </div>
       </div>
     </div>`;
+  m.querySelectorAll('.gig[data-id]').forEach(el=>el.onclick=()=>gigForm(upcoming.find(e=>e.id===el.dataset.id)));
+  $('#hprev').onclick=()=>{ S.home.m--; if(S.home.m<0){S.home.m=11;S.home.y--} render() };
+  $('#hnext').onclick=()=>{ S.home.m++; if(S.home.m>11){S.home.m=0;S.home.y++} render() };
+  if($('#hnow')) $('#hnow').onclick=()=>{ S.home={y:now.getFullYear(),m:now.getMonth()}; render() };
 }
 
 // ===== יומן =====
