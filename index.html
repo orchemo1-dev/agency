@@ -109,6 +109,7 @@
     <button data-page="home" class="on">בית</button>
     <button data-page="calendar">יומן משותף</button>
     <button data-page="income">הכנסות</button>
+    <button data-page="trips">נסיעות וטורים</button>
     <button data-page="tasks">משימות הדיג'ייז</button>
     <button data-page="agency">ניהול פנימי</button>
     <button data-page="goals">מטרות</button>
@@ -166,6 +167,34 @@ const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 const pill = a => `<span class="pill ${PILL[a.slug]||''}">${esc(a.name)}</span>`;
 const $ = sel => document.querySelector(sel);
 
+
+// ---------- מטבעות ונסיעות ----------
+const CUR={ILS:'₪',USD:'$',EUR:'€'};
+const money=(n,c)=>c&&c!=='ILS'?(CUR[c]||c)+Math.round(Number(n)||0).toLocaleString('he-IL'):ils(n);
+S.fx={};
+async function fxRate(c){ if(!c||c==='ILS') return 1; if(S.fx[c]) return S.fx[c];
+  try{ const r=await fetch(`https://api.frankfurter.dev/v1/latest?base=${c}&symbols=ILS`).then(r=>r.json()); S.fx[c]=r.rates.ILS; return S.fx[c]; }
+  catch{ const v=Number(prompt(`לא הצלחתי למשוך שער ${c}. כמה שקלים שווה 1 ${c}?`,c==='EUR'?'3.5':'3.15')); S.fx[c]=v||1; return S.fx[c]; } }
+const EXP_CAT={flight:'✈️ טיסה',hotel:'🏨 מלון',transport:'🚕 הסעות',other:'➕ אחר'};
+// מחשב לכל דיג'יי ולכל חודש: הכנסות, הוצאות נסיעה, עמלה (30% מהרווח אחרי הוצאות בנסיעות)
+async function finance(from,to){
+  let evs; try{ evs=await get('events',`select=id,artist_id,date,price,trip_id&type=eq.gig&date=gte.${from}&date=lt.${to}`); }catch{ evs=await get('events',`select=id,artist_id,date,price&type=eq.gig&date=gte.${from}&date=lt.${to}`); }
+  const tids=[...new Set(evs.map(e=>e.trip_id).filter(Boolean))];
+  let exps=[], tg=[];
+  if(tids.length){ try{ [exps,tg]=await Promise.all([ get('trip_expenses',`select=trip_id,amount_ils,artist_ids&trip_id=in.(${tids})`), get('events',`select=id,artist_id,price,trip_id&type=eq.gig&trip_id=in.(${tids})`) ]); }catch{} }
+  const gigExp={};
+  tids.forEach(t=>{ const gs=tg.filter(g=>g.trip_id===t); const arts=[...new Set(gs.map(g=>g.artist_id))];
+    const E={}; exps.filter(x=>x.trip_id===t).forEach(x=>{ const tgt=(x.artist_ids&&x.artist_ids.length?x.artist_ids:arts).filter(a=>arts.includes(a)); const sh=Number(x.amount_ils||0)/Math.max(1,tgt.length); tgt.forEach(a=>E[a]=(E[a]||0)+sh); });
+    arts.forEach(a=>{ const mine=gs.filter(g=>g.artist_id===a); const inc=mine.reduce((s,g)=>s+Number(g.price||0),0);
+      mine.forEach((g,i)=>gigExp[g.id]=inc>0? (E[a]||0)*Number(g.price||0)/inc : (i===0?(E[a]||0):0)); }); });
+  const out={};
+  evs.forEach(e=>{ const a=S.byId[e.artist_id]; if(!a) return; const k=e.artist_id+'|'+(Number(e.date.slice(5,7))-1);
+    const r=out[k]=out[k]||{n:0,inc:0,exp:0,com:0}; const p=Number(e.price||0), x=gigExp[e.id]||0;
+    r.n++; r.inc+=p; r.exp+=x; r.com+=Math.max(0,p-x)*a.commission_pct/100; });
+  Object.values(out).forEach(r=>r.keep=r.inc-r.exp-r.com);
+  return out;
+}
+
 // ---------- boot ----------
 function showLogin(){ $('#login').classList.remove('hidden'); $('#app').classList.add('hidden'); }
 $('#loginForm').onsubmit = async e => { e.preventDefault(); $('#loginErr').textContent=''; const f=new FormData(e.target); try{ await login(f.get('email'),f.get('password')); await boot(); }catch(err){ $('#loginErr').textContent=err.message } };
@@ -190,7 +219,7 @@ async function boot(){
 // ---------- render ----------
 async function render(){
   const m=$('#main'); m.innerHTML='<div class="muted">טוען…</div>';
-  try{ await ({home,calendar,income,tasks,agency,goals})[S.page](m); }
+  try{ await ({home,calendar,income,trips,tasks,agency,goals})[S.page](m); }
   catch(e){ m.innerHTML=`<div class="card err">שגיאה: ${esc(e.message)}</div>`; }
 }
 
@@ -200,15 +229,15 @@ async function home(m){
   const first=`${y}-${String(mo+1).padStart(2,'0')}-01`;
   const next=ymd(new Date(y,mo+1,1)); const lastDay=ymd(new Date(y,mo+1,0));
   const today=ymd(now);
-  const [monthGigs, upcoming, openTasks, log, agencyTodos] = await Promise.all([
-    get('events',`select=artist_id,price&type=eq.gig&date=gte.${first}&date=lt.${next}`),
-    get('events',`select=id,artist_id,date,title,location,price,type,start_time&type=eq.gig&date=gte.${first}&date=lte.${lastDay}&order=date,start_time`),
+  const [fin, upcoming, openTasks, log, agencyTodos] = await Promise.all([
+    finance(first,next),
+    get('events',`select=id,artist_id,date,title,location,price,type,start_time,contact_name,contact_phone,notes,currency,price_original,trip_id&type=eq.gig&date=gte.${first}&date=lte.${lastDay}&order=date,start_time`),
     get('tasks','select=artist_id,status&status=neq.done'),
     get('activity_log','select=id,artist_id,action,after,before,created_at&entity=eq.event&actor=not.is.null&order=id.desc&limit=8'),
     get('reminders','select=id,title,due_at,assignee,done&artist_id=is.null&done=eq.false&order=due_at&limit=6'),
   ]);
-  const rows=S.artists.map(a=>{ const gs=monthGigs.filter(e=>e.artist_id===a.id); const inc=gs.reduce((s,e)=>s+Number(e.price||0),0); const com=inc*a.commission_pct/100; return {a,n:gs.length,inc,com,keep:inc-com}; });
-  const tot=rows.reduce((s,r)=>({n:s.n+r.n,inc:s.inc+r.inc,com:s.com+r.com,keep:s.keep+r.keep}),{n:0,inc:0,com:0,keep:0});
+  const rows=S.artists.map(a=>({a,...(fin[a.id+'|'+mo]||{n:0,inc:0,exp:0,com:0,keep:0})}));
+  const tot=rows.reduce((s,r)=>({n:s.n+r.n,inc:s.inc+r.inc,exp:s.exp+r.exp,com:s.com+r.com,keep:s.keep+r.keep}),{n:0,inc:0,exp:0,com:0,keep:0});
   const byDay={}; upcoming.forEach(e=>(byDay[e.date]=byDay[e.date]||[]).push(e));
   const dayLabel=d=>{ const dt=new Date(d+'T00:00:00'); const diff=Math.round((dt-new Date(today+'T00:00:00'))/864e5); const w=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][dt.getDay()]; return `${diff===0?'היום':diff===1?'מחר':'יום '+w} · ${fmtDate(d)}${diff<0?' <span style="opacity:.6">(עבר)</span>':''}`; };
   m.innerHTML = `
@@ -216,13 +245,13 @@ async function home(m){
       <div class="row" style="gap:8px;align-items:center"><button class="btn ghost sm" id="hprev">‹ ${HE_MONTHS[(mo+11)%12]}</button>${isCur?'':'<button class="btn ghost sm" id="hnow">היום</button>'}<button class="btn ghost sm" id="hnext">${HE_MONTHS[(mo+1)%12]} ›</button></div></div>
     <div class="row" style="margin-bottom:14px">
       <div class="card tile"><div class="k">הכנסות ${HE_MONTHS[mo]}</div><div class="v num">${ils(tot.inc)}</div><div class="s">${tot.n} גיגים · שלושת הדיג'ייז</div></div>
-      <div class="card tile"><div class="k">לסוכנות (30%)</div><div class="v num">${ils(tot.com)}</div><div class="s">מתחלק בינך לבין ירין</div></div>
+      <div class="card tile"><div class="k">לסוכנות (30%)</div><div class="v num">${ils(tot.com)}</div><div class="s">${tot.exp?`אחרי הוצאות נסיעה ${ils(tot.exp)}`:"מתחלק בינך לבין ירין"}</div></div>
       <div class="card tile"><div class="k">נשאר לדיג'ייז</div><div class="v num">${ils(tot.keep)}</div><div class="s">משימות פתוחות: ${openTasks.length}</div></div>
     </div>
     <div class="card" style="margin-bottom:14px"><h2>החודש לפי דיג'יי</h2>
-      <table><tr><th>דיג'יי</th><th>גיגים</th><th>מרוויח החודש</th><th>מוריד לסוכנות</th><th>נשאר לו</th></tr>
-      ${rows.map(r=>`<tr><td>${pill(r.a)}</td><td class="num">${r.n}</td><td class="num"><b>${ils(r.inc)}</b></td><td class="num">${ils(r.com)}</td><td class="num muted">${ils(r.keep)}</td></tr>`).join('')}
-      <tr><td><b>סה"כ</b></td><td class="num"><b>${tot.n}</b></td><td class="num"><b>${ils(tot.inc)}</b></td><td class="num"><b>${ils(tot.com)}</b></td><td class="num"><b>${ils(tot.keep)}</b></td></tr></table>
+      <table><tr><th>דיג'יי</th><th>גיגים</th><th>מרוויח החודש</th><th>הוצאות נסיעה</th><th>מוריד לסוכנות</th><th>נשאר לו</th></tr>
+      ${rows.map(r=>`<tr><td>${pill(r.a)}</td><td class="num">${r.n}</td><td class="num"><b>${ils(r.inc)}</b></td><td class="num muted">${r.exp?"−"+ils(r.exp):"–"}</td><td class="num">${ils(r.com)}</td><td class="num muted">${ils(r.keep)}</td></tr>`).join('')}
+      <tr><td><b>סה"כ</b></td><td class="num"><b>${tot.n}</b></td><td class="num"><b>${ils(tot.inc)}</b></td><td class="num"><b>${tot.exp?"−"+ils(tot.exp):"–"}</b></td><td class="num"><b>${ils(tot.com)}</b></td><td class="num"><b>${ils(tot.keep)}</b></td></tr></table>
     </div>
     <div class="grid2">
       <div class="card"><h2>הגיגים של ${HE_MONTHS[mo]} <span class="muted" style="font-weight:400">· ${upcoming.length}</span></h2>
@@ -250,7 +279,7 @@ async function calendar(m){
   const {y,m:mo}=S.cal;
   const first=new Date(y,mo,1), last=new Date(y,mo+1,0);
   const from=ymd(first), to=ymd(last);
-  let q=`select=id,artist_id,date,title,location,price,type,start_time,contact_name,payment_status&date=gte.${from}&date=lte.${to}&order=date`;
+  let q=`select=id,artist_id,date,title,location,price,type,start_time,contact_name,contact_phone,notes,payment_status,currency,price_original,trip_id&date=gte.${from}&date=lte.${to}&order=date`;
   if(S.filter!=='all') q+=`&artist_id=eq.${S.filter}`;
   const evs=await get('events',q);
   const byDay={}; evs.forEach(e=>(byDay[e.date]=byDay[e.date]||[]).push(e));
@@ -273,7 +302,7 @@ async function calendar(m){
       ${cells.map(d=>{ if(!d) return '<div></div>'; const k=ymd(d); const list=byDay[k]||[]; return `<div class="d"><div class="n">${d.getDate()}</div>${list.map(e=>`<div class="ev" data-id="${e.id}" style="background:${COLORS[S.byId[e.artist_id]?.slug]||'#999'};${e.type!=='gig'?'opacity:.55':''}" title="${esc(e.title)}">${esc(e.title)}</div>`).join('')}</div>` }).join('')}
     </div>
     <div class="card" style="margin-top:14px"><h2>רשימת החודש</h2>
-      ${evs.length?`<table><tr><th>תאריך</th><th>דיג'יי</th><th>אירוע</th><th>מקום</th><th>סכום</th><th></th></tr>${evs.map(e=>`<tr><td class="num">${fmtDate(e.date)}${e.start_time?` <span class="muted">${e.start_time.slice(0,5)}</span>`:''}</td><td>${pill(S.byId[e.artist_id])}</td><td>${esc(e.title)}${e.type!=='gig'?` <span class="muted">(${esc(e.type)})</span>`:''}</td><td class="muted">${esc(e.location||'')}</td><td class="num">${e.type==='gig'?ils(e.price):''}</td><td><button class="btn ghost sm" data-edit="${e.id}">ערוך</button></td></tr>`).join('')}</table>`:'<div class="muted">אין אירועים החודש</div>'}
+      ${evs.length?`<table><tr><th>תאריך</th><th>דיג'יי</th><th>אירוע</th><th>מקום</th><th>סכום</th><th></th></tr>${evs.map(e=>`<tr><td class="num">${fmtDate(e.date)}${e.start_time?` <span class="muted">${e.start_time.slice(0,5)}</span>`:''}</td><td>${pill(S.byId[e.artist_id])}</td><td>${esc(e.title)}${e.type!=='gig'?` <span class="muted">(${esc(e.type)})</span>`:''}</td><td class="muted">${esc(e.location||'')}</td><td class="num">${e.type==='gig'?(e.currency&&e.currency!=='ILS'?`${money(e.price_original,e.currency)} <span class="muted">(${ils(e.price)})</span>`:ils(e.price)):''}${e.trip_id?' ✈️':''}</td><td><button class="btn ghost sm" data-edit="${e.id}">ערוך</button></td></tr>`).join('')}</table>`:'<div class="muted">אין אירועים החודש</div>'}
     </div>`;
   m.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{S.filter=b.dataset.f;render()});
   $('#prev').onclick=()=>{ S.cal.m--; if(S.cal.m<0){S.cal.m=11;S.cal.y--} render() };
@@ -282,8 +311,10 @@ async function calendar(m){
   m.querySelectorAll('[data-edit],[data-id]').forEach(el=>el.onclick=()=>gigForm(evs.find(e=>e.id===(el.dataset.edit||el.dataset.id))));
 }
 
-function gigForm(e){
-  const isNew=!e; e=e||{type:'gig',date:ymd(new Date())};
+async function gigForm(e){
+  const isNew=!e; e=e||{type:'gig',date:ymd(new Date()),currency:'ILS'};
+  let trips=[]; try{ trips=await get('trips','select=id,name,start_date,end_date&order=start_date.desc&limit=30'); }catch{}
+  const cur=e.currency||'ILS'; const amt=e.price_original??e.price??'';
   modal(`
     <h2>${isNew?'גיג חדש':'עריכת אירוע'}</h2>
     <form id="gf" class="inline">
@@ -293,7 +324,13 @@ function gigForm(e){
       <label class="field">שעה<input name="start_time" type="time" value="${(e.start_time||'').slice(0,5)}"></label>
       <label class="field" style="grid-column:span 2">שם האירוע<input name="title" value="${esc(e.title||'')}" required></label>
       <label class="field" style="grid-column:span 2">מקום<input name="location" value="${esc(e.location||'')}"></label>
-      <label class="field">סכום (₪)<input name="price" type="number" min="0" step="1" value="${e.price??''}"></label>
+      <label class="field">מטבע<select name="currency" id="gcur">${Object.keys(CUR).map(c=>`<option value="${c}" ${c===cur?'selected':''}>${CUR[c]} ${c}</option>`).join('')}</select></label>
+      <label class="field">סכום הגיג<input name="amount" id="gamt" type="number" min="0" step="1" value="${amt}"><small class="muted" id="gconv"></small></label>
+      <label class="field" style="grid-column:span 2">נסיעה / טור<select name="trip" id="gtrip">
+        <option value="auto" ${!e.trip_id?'selected':''}>אוטומטי (גיג בחו"ל נכנס לנסיעה לבד)</option>
+        <option value="none">בלי נסיעה</option>
+        ${trips.map(t=>`<option value="${t.id}" ${t.id===e.trip_id?'selected':''}>${esc(t.name)}</option>`).join('')}
+        <option value="new">+ נסיעה חדשה</option></select></label>
       <label class="field">איש קשר<input name="contact_name" value="${esc(e.contact_name||'')}"></label>
       <label class="field">טלפון<input name="contact_phone" value="${esc(e.contact_phone||'')}"></label>
       <label class="field" style="grid-column:1/-1">הערות<textarea name="notes" rows="2">${esc(e.notes||'')}</textarea></label>
@@ -303,42 +340,112 @@ function gigForm(e){
         ${isNew?'':'<button class="btn ghost" type="button" id="mdel" style="margin-right:auto;color:#b32d2c">מחק</button>'}
       </div>
     </form>`);
-  $('#gf').onsubmit=async ev=>{ ev.preventDefault(); const f=Object.fromEntries(new FormData(ev.target)); f.price=Number(f.price||0); if(!f.start_time) delete f.start_time; if(!f.artist_id) f.artist_id=e.artist_id;
-    try{ if(isNew) await post('events',f); else { delete f.artist_id; await patch('events',`id=eq.${e.id}`,f); } closeModal(); render(); }catch(err){ alert('שגיאה: '+err.message) } };
+  const conv=async()=>{ const c=$('#gcur').value, a=Number($('#gamt').value||0); if(c==='ILS'){ $('#gconv').textContent=''; return; } const r=await fxRate(c); $('#gconv').textContent=`≈ ${ils(a*r)} (שער היום ${r.toFixed(3)})`; };
+  $('#gcur').onchange=conv; $('#gamt').oninput=conv; conv();
+  $('#gf').onsubmit=async ev=>{ ev.preventDefault(); const f=Object.fromEntries(new FormData(ev.target));
+    const c=f.currency, a=Number(f.amount||0), r=await fxRate(c); const tripSel=f.trip; delete f.amount; delete f.trip;
+    f.price=Math.round(a*r); f.price_original=a; f.fx_rate=r;
+    if(!f.start_time) delete f.start_time; if(!f.artist_id) f.artist_id=e.artist_id;
+    try{
+      f.trip_id = await pickTrip(tripSel, f, c);
+      if(isNew) await post('events',f); else { delete f.artist_id; await patch('events',`id=eq.${e.id}`,f); }
+      closeModal(); render();
+    }catch(err){ alert('שגיאה: '+err.message) } };
   $('#mclose').onclick=closeModal;
   if($('#mdel')) $('#mdel').onclick=async()=>{ if(confirm('למחוק את האירוע?')){ await del('events',`id=eq.${e.id}`); closeModal(); render(); } };
 }
+// משייך גיג לנסיעה: קיימת שבטווח של 5 ימים, או פותח חדשה
+async function pickTrip(sel,f,cur){
+  if(sel==='none') return null;
+  if(sel!=='auto' && sel!=='new'){ await stretchTrip(sel,f.date); return sel; }
+  if(sel==='auto' && cur==='ILS') return null;
+  const d=new Date(f.date+'T00:00:00'), plus=n=>ymd(new Date(d.getTime()+n*864e5));
+  if(sel==='auto'){ const near=await get('trips',`select=id&start_date=lte.${plus(5)}&end_date=gte.${plus(-5)}&order=start_date&limit=1`); if(near.length){ await stretchTrip(near[0].id,f.date); return near[0].id; } }
+  const name=prompt('שם לנסיעה:', `${f.location||f.title} · ${HE_MONTHS[d.getMonth()]} ${d.getFullYear()}`); if(name===null) return null;
+  const t=await post('trips',{name,start_date:f.date,end_date:f.date}); return t[0].id;
+}
+async function stretchTrip(id,date){ const [t]=await get('trips',`select=start_date,end_date&id=eq.${id}`); if(!t) return;
+  const p={}; if(!t.start_date||date<t.start_date) p.start_date=date; if(!t.end_date||date>t.end_date) p.end_date=date; if(Object.keys(p).length) await patch('trips',`id=eq.${id}`,p); }
+
+// ===== נסיעות וטורים =====
+async function trips(m){
+  let ts=[]; try{ ts=await get('trips','select=id,name,start_date,end_date,notes&order=start_date.desc'); }catch(err){ m.innerHTML='<div class="card err">טבלת הנסיעות עוד לא קיימת במסד הנתונים.</div>'; return; }
+  const ids=ts.map(t=>t.id);
+  const [gigs,exps]= ids.length? await Promise.all([ get('events',`select=id,artist_id,date,title,location,price,currency,price_original,trip_id&trip_id=in.(${ids})&order=date`), get('trip_expenses',`select=id,trip_id,category,label,amount,currency,amount_ils,artist_ids&trip_id=in.(${ids})&order=created_at`) ]) : [[],[]];
+  const card=t=>{
+    const gs=gigs.filter(g=>g.trip_id===t.id), xs=exps.filter(x=>x.trip_id===t.id);
+    const arts=[...new Set(gs.map(g=>g.artist_id))];
+    const E={}; xs.forEach(x=>{ const tgt=(x.artist_ids&&x.artist_ids.length?x.artist_ids:arts).filter(a=>arts.includes(a)); const sh=Number(x.amount_ils||0)/Math.max(1,tgt.length); tgt.forEach(a=>E[a]=(E[a]||0)+sh); });
+    const per=arts.map(a=>{ const ar=S.byId[a]; const inc=gs.filter(g=>g.artist_id===a).reduce((s,g)=>s+Number(g.price||0),0); const ex=E[a]||0; const net=inc-ex; const com=Math.max(0,net)*(ar?.commission_pct||30)/100; return {ar,inc,ex,net,com,keep:net-com}; });
+    const T=per.reduce((s,p)=>({inc:s.inc+p.inc,ex:s.ex+p.ex,net:s.net+p.net,com:s.com+p.com,keep:s.keep+p.keep}),{inc:0,ex:0,net:0,com:0,keep:0});
+    return `<div class="card" style="margin-bottom:14px">
+      <div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">✈️ ${esc(t.name)} <span class="muted" style="font-weight:400">${t.start_date?fmtDate(t.start_date):''}${t.end_date&&t.end_date!==t.start_date?' – '+fmtDate(t.end_date):''}</span></h2>
+        <div class="row" style="gap:6px"><button class="btn ghost sm" data-tren="${t.id}">שנה שם</button><button class="btn ghost sm" data-tdelt="${t.id}" style="color:#b32d2c">מחק נסיעה</button></div></div>
+      <div class="row" style="margin:12px 0">
+        <div class="card tile"><div class="k">הכנסות</div><div class="v num">${ils(T.inc)}</div></div>
+        <div class="card tile"><div class="k">הוצאות</div><div class="v num">${ils(T.ex)}</div></div>
+        <div class="card tile"><div class="k">רווח נטו</div><div class="v num">${ils(T.net)}</div></div>
+        <div class="card tile"><div class="k">לסוכנות (30% מהנטו)</div><div class="v num">${ils(T.com)}</div></div>
+      </div>
+      <div class="grid2">
+        <div><h2>גיגים</h2>${gs.length?`<table><tr><th>תאריך</th><th>דיג'יי</th><th>גיג</th><th>סכום</th></tr>${gs.map(g=>`<tr><td class="num">${fmtDate(g.date)}</td><td>${pill(S.byId[g.artist_id]||{name:'?'})}</td><td>${esc(g.title)}</td><td class="num">${g.currency&&g.currency!=='ILS'?money(g.price_original,g.currency)+' <span class="muted">('+ils(g.price)+')</span>':ils(g.price)}</td></tr>`).join('')}</table>`:'<div class="muted">אין עדיין גיגים בנסיעה</div>'}</div>
+        <div><h2>הוצאות</h2>
+          ${xs.map(x=>`<div class="task"><div class="t">${EXP_CAT[x.category]||x.category} ${esc(x.label||'')}<small>${money(x.amount,x.currency)}${x.currency!=='ILS'?' = '+ils(x.amount_ils):''} · ${x.artist_ids&&x.artist_ids.length?x.artist_ids.map(a=>S.byId[a]?.name.split(' ')[0]).join(', '):'מתחלק בין כולם'}</small></div><button class="btn ghost sm" data-xdel="${x.id}">✕</button></div>`).join('')||'<div class="muted" style="margin-bottom:8px">אין הוצאות</div>'}
+          <form class="inline" data-xform="${t.id}" style="margin-top:8px">
+            <label class="field">סוג<select name="category">${Object.entries(EXP_CAT).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label>
+            <label class="field">פירוט<input name="label" placeholder="למשל: טיסות TLV-MEX"></label>
+            <label class="field">סכום<input name="amount" type="number" min="0" step="1" required></label>
+            <label class="field">מטבע<select name="currency">${Object.keys(CUR).map(c=>`<option value="${c}">${CUR[c]} ${c}</option>`).join('')}</select></label>
+            <label class="field" style="grid-column:1/-1">על מי<div class="row" style="gap:10px">${arts.map(a=>`<label style="font-size:13px"><input type="checkbox" name="who" value="${a}" checked> ${esc(S.byId[a]?.name||'')}</label>`).join('')||'<span class="muted">כולם</span>'}</div></label>
+            <button class="btn sm" type="submit">+ הוסף הוצאה</button>
+          </form>
+        </div>
+      </div>
+      ${per.length?`<h2 style="margin-top:14px">חלוקה לפי דיג'יי</h2><table><tr><th>דיג'יי</th><th>הכנסות</th><th>הוצאות</th><th>נטו</th><th>לסוכנות</th><th>נשאר לו</th></tr>${per.map(p=>`<tr><td>${pill(p.ar||{name:'?'})}</td><td class="num">${ils(p.inc)}</td><td class="num muted">−${ils(p.ex)}</td><td class="num"><b>${ils(p.net)}</b></td><td class="num">${ils(p.com)}</td><td class="num">${ils(p.keep)}</td></tr>`).join('')}</table>`:''}
+    </div>`; };
+  m.innerHTML=`<div class="row" style="justify-content:space-between;align-items:center"><h1>נסיעות וטורים</h1><button class="btn sm" id="newTrip">+ נסיעה חדשה</button></div>
+    <div class="muted" style="margin:-8px 0 14px;font-size:13px">כל גיג בחו"ל נכנס לנסיעה לבד. מוסיפים כאן הוצאות (טיסות, מלון, הסעות), והעמלה של הסוכנות מחושבת מהרווח אחרי ההוצאות.</div>
+    ${ts.length? ts.map(card).join('') : '<div class="card muted">עוד אין נסיעות. כשתוסיף גיג במטבע זר, תיפתח נסיעה אוטומטית.</div>'}`;
+  $('#newTrip').onclick=async()=>{ const name=prompt('שם הנסיעה (למשל: מקסיקו נובמבר 2026)'); if(!name) return; await post('trips',{name}); render(); };
+  m.querySelectorAll('[data-tren]').forEach(b=>b.onclick=async()=>{ const t=ts.find(x=>x.id===b.dataset.tren); const name=prompt('שם חדש:',t.name); if(name){ await patch('trips',`id=eq.${t.id}`,{name}); render(); } });
+  m.querySelectorAll('[data-tdelt]').forEach(b=>b.onclick=async()=>{ if(confirm('למחוק את הנסיעה? הגיגים נשארים ביומן, רק ההוצאות נמחקות.')){ await del('trips',`id=eq.${b.dataset.tdelt}`); render(); } });
+  m.querySelectorAll('[data-xdel]').forEach(b=>b.onclick=async()=>{ if(confirm('למחוק את ההוצאה?')){ await del('trip_expenses',`id=eq.${b.dataset.xdel}`); render(); } });
+  m.querySelectorAll('[data-xform]').forEach(fm=>fm.onsubmit=async ev=>{ ev.preventDefault(); const fd=new FormData(fm); const who=fd.getAll('who'); const c=fd.get('currency');
+    await post('trip_expenses',{trip_id:fm.dataset.xform,category:fd.get('category'),label:fd.get('label')||null,amount:Number(fd.get('amount')),currency:c,fx_rate:await fxRate(c),artist_ids:who.length?who:null}); render(); });
+}
+
 function modal(html){ const md=$('#modal'); md.innerHTML=`<div class="card">${html}</div>`; md.classList.remove('hidden'); md.onclick=ev=>{ if(ev.target===md) closeModal() }; }
 function closeModal(){ $('#modal').classList.add('hidden'); }
 
 // ===== הכנסות =====
 async function income(m){
   const y=S.incomeYear;
-  const rows=await get('artist_monthly_income',`select=artist_id,month,gigs,income,commission&month=gte.${y}-01-01&month=lt.${y+1}-01-01&order=month`);
+  const fin=await finance(`${y}-01-01`,`${y+1}-01-01`);
   const months=[...Array(12).keys()];
-  const cell={}; rows.forEach(r=>{ cell[r.artist_id+'|'+new Date(r.month).getMonth()]=r });
-  const tot=a=>rows.filter(r=>r.artist_id===a.id).reduce((s,r)=>({inc:s.inc+Number(r.income),com:s.com+Number(r.commission),g:s.g+Number(r.gigs)}),{inc:0,com:0,g:0});
+  const cell={}; Object.entries(fin).forEach(([k,v])=>cell[k]=v);
+  const tot=a=>months.reduce((s,i)=>{ const r=cell[a.id+'|'+i]; return r?{inc:s.inc+r.inc,exp:s.exp+r.exp,com:s.com+r.com,g:s.g+r.n}:s },{inc:0,exp:0,com:0,g:0});
   const totals=S.artists.map(a=>({a,...tot(a)}));
-  const all=totals.reduce((s,t)=>({inc:s.inc+t.inc,com:s.com+t.com,g:s.g+t.g}),{inc:0,com:0,g:0});
-  const maxM=Math.max(1,...months.map(i=>S.artists.reduce((s,a)=>s+Number(cell[a.id+'|'+i]?.income||0),0)));
+  const all=totals.reduce((s,t)=>({inc:s.inc+t.inc,exp:s.exp+t.exp,com:s.com+t.com,g:s.g+t.g}),{inc:0,exp:0,com:0,g:0});
+  const maxM=Math.max(1,...months.map(i=>S.artists.reduce((s,a)=>s+Number(cell[a.id+'|'+i]?.inc||0),0)));
   m.innerHTML=`
     <div class="row" style="justify-content:space-between;align-items:center"><h1>הכנסות ${y}</h1>
       <div class="row" style="gap:8px"><button class="btn ghost sm" id="py">‹ ${y-1}</button><button class="btn ghost sm" id="ny">${y+1} ›</button></div></div>
     <div class="row" style="margin-bottom:14px">
       <div class="card tile"><div class="k">סה"כ הכנסות ${y}</div><div class="v num">${ils(all.inc)}</div><div class="s">${all.g} גיגים</div></div>
-      <div class="card tile"><div class="k">לסוכנות (30%)</div><div class="v num">${ils(all.com)}</div><div class="s">מתחלק בינך לבין ירין</div></div>
-      <div class="card tile"><div class="k">נשאר לדיג'ייז (70%)</div><div class="v num">${ils(all.inc-all.com)}</div></div>
+      <div class="card tile"><div class="k">הוצאות נסיעות</div><div class="v num">${ils(all.exp)}</div><div class="s">טיסות, מלונות והסעות בחו"ל</div></div>
+      <div class="card tile"><div class="k">לסוכנות</div><div class="v num">${ils(all.com)}</div><div class="s">30%, ובנסיעות מהרווח אחרי הוצאות</div></div>
+      <div class="card tile"><div class="k">נשאר לדיג'ייז</div><div class="v num">${ils(all.inc-all.exp-all.com)}</div></div>
     </div>
     <div class="card" style="margin-bottom:14px"><h2>לפי דיג'יי</h2>
-      <table><tr><th>דיג'יי</th><th>גיגים</th><th>הכנסות</th><th>לסוכנות</th><th>נשאר לדיג'יי</th><th>ממוצע לגיג</th></tr>
-      ${totals.map(t=>`<tr><td>${pill(t.a)}</td><td class="num">${t.g}</td><td class="num"><b>${ils(t.inc)}</b></td><td class="num">${ils(t.com)}</td><td class="num">${ils(t.inc-t.com)}</td><td class="num muted">${t.g?ils(t.inc/t.g):'–'}</td></tr>`).join('')}
-      <tr><td><b>סה"כ</b></td><td class="num"><b>${all.g}</b></td><td class="num"><b>${ils(all.inc)}</b></td><td class="num"><b>${ils(all.com)}</b></td><td class="num"><b>${ils(all.inc-all.com)}</b></td><td></td></tr></table>
+      <table><tr><th>דיג'יי</th><th>גיגים</th><th>הכנסות</th><th>הוצאות נסיעה</th><th>לסוכנות</th><th>נשאר לדיג'יי</th></tr>
+      ${totals.map(t=>`<tr><td>${pill(t.a)}</td><td class="num">${t.g}</td><td class="num"><b>${ils(t.inc)}</b></td><td class="num muted">${t.exp?'−'+ils(t.exp):'–'}</td><td class="num">${ils(t.com)}</td><td class="num">${ils(t.inc-t.exp-t.com)}</td></tr>`).join('')}
+      <tr><td><b>סה"כ</b></td><td class="num"><b>${all.g}</b></td><td class="num"><b>${ils(all.inc)}</b></td><td class="num"><b>${all.exp?'−'+ils(all.exp):'–'}</b></td><td class="num"><b>${ils(all.com)}</b></td><td class="num"><b>${ils(all.inc-all.exp-all.com)}</b></td></tr></table>
     </div>
     <div class="card" style="margin-bottom:14px"><h2>לפי חודש</h2>
-      <div class="bars">${months.map(i=>{ const segs=S.artists.map(a=>({a,v:Number(cell[a.id+'|'+i]?.income||0)})); const sum=segs.reduce((s,x)=>s+x.v,0); return `<div class="bar"><div class="num" style="font-size:10px">${sum?ils(sum):''}</div><div class="stack" style="height:${Math.round(sum/maxM*100)}px">${segs.map(x=>`<div class="seg" style="height:${sum?x.v/sum*100:0}%;background:${COLORS[x.a.slug]}" title="${esc(x.a.name)} ${ils(x.v)}"></div>`).join('')}</div><div>${HE_MONTHS[i].slice(0,3)}</div></div>` }).join('')}</div>
-      <table style="margin-top:14px"><tr><th>חודש</th>${S.artists.map(a=>`<th>${esc(a.name)}</th>`).join('')}<th>סה"כ</th><th>לסוכנות</th></tr>
-      ${months.map(i=>{ const vals=S.artists.map(a=>cell[a.id+'|'+i]); const sum=vals.reduce((s,r)=>s+Number(r?.income||0),0); if(!sum) return ''; const com=vals.reduce((s,r)=>s+Number(r?.commission||0),0); return `<tr><td>${HE_MONTHS[i]}</td>${vals.map(r=>`<td class="num">${r?ils(r.income):'<span class="muted">–</span>'} ${r?`<span class="muted" style="font-size:11px">(${r.gigs})</span>`:''}</td>`).join('')}<td class="num"><b>${ils(sum)}</b></td><td class="num">${ils(com)}</td></tr>` }).join('')}</table>
-      <div class="muted" style="font-size:12px;margin-top:10px">ההכנסה = סכום הגיגים לפי תאריך ההופעה, כפי שהדיג'ייז רושמים ביומן. הסכומים בשקלים.</div>
+      <div class="bars">${months.map(i=>{ const segs=S.artists.map(a=>({a,v:Number(cell[a.id+'|'+i]?.inc||0)})); const sum=segs.reduce((s,x)=>s+x.v,0); return `<div class="bar"><div class="num" style="font-size:10px">${sum?ils(sum):''}</div><div class="stack" style="height:${Math.round(sum/maxM*100)}px">${segs.map(x=>`<div class="seg" style="height:${sum?x.v/sum*100:0}%;background:${COLORS[x.a.slug]}" title="${esc(x.a.name)} ${ils(x.v)}"></div>`).join('')}</div><div>${HE_MONTHS[i].slice(0,3)}</div></div>` }).join('')}</div>
+      <table style="margin-top:14px"><tr><th>חודש</th>${S.artists.map(a=>`<th>${esc(a.name)}</th>`).join('')}<th>סה"כ</th><th>הוצאות</th><th>לסוכנות</th></tr>
+      ${months.map(i=>{ const vals=S.artists.map(a=>cell[a.id+'|'+i]); const sum=vals.reduce((s,r)=>s+Number(r?.inc||0),0); if(!sum) return ''; const ex=vals.reduce((s,r)=>s+Number(r?.exp||0),0); const com=vals.reduce((s,r)=>s+Number(r?.com||0),0); return `<tr><td>${HE_MONTHS[i]}</td>${vals.map(r=>`<td class="num">${r?ils(r.inc):'<span class="muted">–</span>'} ${r?`<span class="muted" style="font-size:11px">(${r.n})</span>`:''}</td>`).join('')}<td class="num"><b>${ils(sum)}</b></td><td class="num muted">${ex?'−'+ils(ex):'–'}</td><td class="num">${ils(com)}</td></tr>` }).join('')}</table>
+      <div class="muted" style="font-size:12px;margin-top:10px">ההכנסה = סכום הגיגים לפי תאריך ההופעה, בשקלים. גיגים במטבע זר מומרים לפי השער ביום הרישום. בגיגים של נסיעות, העמלה מחושבת מהרווח אחרי הוצאות הנסיעה.</div>
     </div>`;
   $('#py').onclick=()=>{S.incomeYear--;render()}; $('#ny').onclick=()=>{S.incomeYear++;render()};
 }
